@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1769e0">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<title>附近吃什麼？</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#202124;--muted:#6b7280;--accent:#1769e0;--border:#e5e7eb;--green:#17803d}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border);padding:14px 16px}h1{font-size:21px;margin:0 0 4px}.sub{font-size:13px;color:var(--muted)}
+main{max-width:820px;margin:auto;padding:14px}.panel,.shop{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0000000a}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.label{font-weight:700;margin:12px 0 7px}
+button,.chip{border:1px solid #d7dce2;background:#fff;border-radius:999px;padding:9px 12px;font-size:14px;cursor:pointer}.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.chip.active{background:#e8f0fe;color:#1558b0;border-color:#8ab4f8;font-weight:700}#status{font-size:14px;color:var(--muted);margin-top:10px}.count{font-weight:700;margin:15px 2px 10px}
+.shop h3{margin:0 0 6px;font-size:17px}.meta{font-size:13px;color:var(--muted);line-height:1.55}.dist{color:var(--accent);font-weight:700}.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.tag{font-size:12px;background:#f1f3f5;border-radius:999px;padding:4px 7px}
+.actions{margin-top:10px}.actions a{display:inline-block;text-decoration:none;color:#fff;background:var(--green);padding:8px 11px;border-radius:9px;font-size:13px}.notice{font-size:12px;color:var(--muted);line-height:1.5;margin-top:9px}.empty{text-align:center;padding:35px 10px;color:var(--muted)}
+.install{display:none;background:#111827;color:#fff;border:0}.install.show{display:inline-block}
+</style>
+</head>
+<body>
+<header><h1>🍜 附近吃什麼？</h1><div class="sub">GPS 定位 · 方圓 1 公里餐飲搜尋</div></header>
+<main>
+<section class="panel">
+ <div class="row">
+  <button class="primary" id="locate">📍 定位並搜尋</button>
+  <button id="refresh">↻ 重新搜尋</button>
+  <button class="install" id="install">＋ 安裝 App</button>
+ </div>
+ <div id="status">尚未取得位置。</div>
+ <div class="label">💰 金額</div>
+ <div class="row" id="prices">
+  <span class="chip active" data-v="all">全部</span><span class="chip" data-v="low">500 以內</span><span class="chip" data-v="mid">500–1000</span><span class="chip" data-v="high">1000 以上</span>
+ </div>
+ <div class="label">🕐 餐期</div>
+ <div class="row" id="meals">
+  <span class="chip active" data-v="all">全部</span><span class="chip" data-v="breakfast">早餐</span><span class="chip" data-v="lunch">午餐</span><span class="chip" data-v="dinner">晚餐</span><span class="chip" data-v="snack">點心</span><span class="chip" data-v="other">以上皆非</span>
+ </div>
+ <div class="notice">餐期可重疊。免費 OpenStreetMap 資料通常沒有可靠的人均消費欄位，因此目前價格屬測試性分類；正式版可再升級店家資料來源。</div>
+</section>
+<div class="count" id="count">等待搜尋…</div>
+<div id="results"><div class="empty">按「定位並搜尋」開始。</div></div>
+</main>
+<script>
+let places=[],lat=null,lon=null,pf='all',mf='all',installPrompt=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function dist(a,b,c,d){let R=6371000,p=x=>x*Math.PI/180,x=p(c-a),y=p(d-b),q=Math.sin(x/2)**2+Math.cos(p(a))*Math.cos(p(c))*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+function meals(p){let s=((p.tags.name||'')+' '+(p.tags.cuisine||'')+' '+(p.tags.amenity||'')+' '+(p.tags.opening_hours||'')).toLowerCase(),r=[];
+ if(/breakfast|早餐|brunch|早午餐/.test(s))r.push('breakfast');
+ if(/restaurant|fast_food|food_court|cafe|午餐|便當|麵|飯|餐/.test(s))r.push('lunch');
+ if(/restaurant|fast_food|food_court|晚餐|燒肉|火鍋|居酒屋|餐/.test(s))r.push('dinner');
+ if(/cafe|ice_cream|bubble_tea|tea|coffee|飲料|甜點|蛋糕|咖啡|茶|冰/.test(s))r.push('snack');
+ if(!r.length)r.push('other');return [...new Set(r)]}
+function price(p){let s=((p.tags.name||'')+' '+(p.tags.cuisine||'')).toLowerCase();if(/fine_dining|omakase|無菜單|懷石/.test(s))return'high';if(/steak|燒肉|hot_pot|火鍋/.test(s))return'mid';return'low'}
+function render(){let a=places.filter(p=>(pf==='all'||p.price===pf)&&(mf==='all'||p.meals.includes(mf))).sort((a,b)=>a.dist-b.dist);$('#count').textContent=`1 公里內顯示 ${a.length} 家`;
+ if(!a.length){$('#results').innerHTML='<div class="empty">目前篩選條件沒有結果。</div>';return}
+ const L={breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'點心',other:'以上皆非'};
+ $('#results').innerHTML=a.map(p=>{let n=p.tags.name||'未命名店家',u=`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`;
+ return `<article class="shop"><h3>${esc(n)}</h3><div class="meta"><span class="dist">${Math.round(p.dist)} m</span>${p.tags.cuisine?' · '+esc(p.tags.cuisine):''}<br>${p.tags.opening_hours?'營業時間：'+esc(p.tags.opening_hours):'營業時間：資料未提供'}</div><div class="tags">${p.meals.map(x=>`<span class="tag">${L[x]}</span>`).join('')}</div><div class="actions"><a href="${u}" target="_blank" rel="noopener">Google Maps 導航</a></div></article>`}).join('')}
+async function search(){if(lat==null)return;$('#status').textContent='正在搜尋 1 公里內店家…';
+ let q=`[out:json][timeout:25];(nwr(around:1000,${lat},${lon})["amenity"~"restaurant|cafe|fast_food|food_court|ice_cream"];nwr(around:1000,${lat},${lon})["shop"~"beverages|tea|coffee"];);out center tags;`;
+ try{let r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:new URLSearchParams({data:q})});if(!r.ok)throw Error('HTTP '+r.status);let d=await r.json(),seen=new Set();
+ places=d.elements.map(e=>{let a=e.lat??e.center?.lat,b=e.lon??e.center?.lon;if(a==null||b==null)return null;let k=(e.tags?.name||'')+'|'+a.toFixed(5)+'|'+b.toFixed(5);if(seen.has(k))return null;seen.add(k);let p={tags:e.tags||{},lat:a,lon:b};p.dist=dist(lat,lon,a,b);p.meals=meals(p);p.price=price(p);return p}).filter(Boolean).filter(p=>p.dist<=1000);
+ $('#status').textContent='定位與店家資料更新完成。';render()}catch(e){$('#status').textContent='店家搜尋失敗：'+e.message+'。免費服務可能繁忙，請稍後重試。'}}
+function locate(){if(!navigator.geolocation){$('#status').textContent='瀏覽器不支援定位。';return}$('#status').textContent='等待位置權限…';navigator.geolocation.getCurrentPosition(p=>{lat=p.coords.latitude;lon=p.coords.longitude;search()},e=>$('#status').textContent='無法定位：'+e.message+'。請允許此網站使用位置。',{enableHighAccuracy:true,timeout:15000,maximumAge:60000})}
+$('#locate').onclick=locate;$('#refresh').onclick=()=>lat==null?locate():search();
+[['#prices','pf'],['#meals','mf']].forEach(([sel,key])=>document.querySelectorAll(sel+' .chip').forEach(x=>x.onclick=()=>{document.querySelectorAll(sel+' .chip').forEach(y=>y.classList.remove('active'));x.classList.add('active');if(key==='pf')pf=x.dataset.v;else mf=x.dataset.v;render()}));
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#install').classList.add('show')});
+$('#install').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('#install').classList.remove('show')};
+</script>
+</body></html>
