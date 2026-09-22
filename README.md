@@ -1,18 +1,4 @@
-# 附近吃什麼？PWA V1
-
-## GitHub Pages
-1. 建立新的 GitHub repository。
-2. 將本 ZIP 解壓後的所有檔案放在 repository 根目錄。
-3. GitHub → Settings → Pages。
-4. Build and deployment 選 Deploy from a branch。
-5. Branch 選 main / (root)，按 Save。
-6. 等待 GitHub Pages HTTPS 網址產生後，用手機開啟。
-7. 按「定位並搜尋」，允許瀏覽器取得位置。
-
-## 檔案
-- index.html：主程式
-- manifest.webmanifest：PWA 設定
-- sw.js：Service Worker
-- icon.svg：App icon
-
-注意：GPS 需要 HTTPS（GitHub Pages 符合）。店家查詢需要網路連線。
+# NearbyFood V3.0 PWA 正式版
+GitHub Pages：將 ZIP 全部檔案上傳 repository 根目錄，Settings > Pages > Deploy from a branch > main / root。
+功能：GPS、300/500/1000m、多條件篩選、營業狀態、隨機選店、Google Maps、菜單/評價搜尋、我的收藏、15分鐘快取、3節點備援、PWA 安裝。
+注意：價格是推估；OSM opening_hours 不完整時營業狀態會顯示未知。

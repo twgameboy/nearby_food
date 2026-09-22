@@ -1,11 +1,10 @@
 {
   "name": "附近吃什麼？",
   "short_name": "附近吃什麼",
-  "description": "搜尋目前位置方圓一公里內的餐廳、咖啡與飲料店",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f7f9",
+  "background_color": "#f6f7fb",
   "theme_color": "#1769e0",
   "icons": [
     {
